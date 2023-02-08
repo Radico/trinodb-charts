@@ -24,6 +24,9 @@ server:
     path: /etc/trino
     http:
       port: 8080
+    jmx:
+      enabled: false
+      port: 9080
     https:
       enabled: false
       port: 8443
@@ -134,8 +137,6 @@ nodeSelector: {}
 
 tolerations: []
 
-affinity: {}
-
 auth: {}
   # Set username and password
   # https://trino.io/docs/current/security/password-file.html#file-format
@@ -164,8 +165,10 @@ coordinator:
     memory:
       heapHeadroomPerNode: ""
 
+  additionalPropertyFiles: {}
   additionalJVMConfig: {}
 
+  annotations: {}
   resources: {}
     # We usually recommend not to specify default resources and to leave this as a conscious
     # choice for the user. This also increases chances charts run on environments with little
@@ -190,6 +193,8 @@ coordinator:
     # timeoutSeconds: 5
     # failureThreshold: 6
     # successThreshold: 1
+  affinity: {}
+
 
 worker:
   jvm:
@@ -203,8 +208,10 @@ worker:
     memory:
       heapHeadroomPerNode: ""
 
+  additionalPropertyFiles: {}
   additionalJVMConfig: {}
 
+  annotations: {}
   resources: {}
     # We usually recommend not to specify default resources and to leave this as a conscious
     # choice for the user. This also increases chances charts run on environments with little
@@ -229,6 +236,7 @@ worker:
     # timeoutSeconds: 5
     # failureThreshold: 6
     # successThreshold: 1
+  affinity: {}
 
 kafka:
   mountPath: "/etc/trino/schemas"

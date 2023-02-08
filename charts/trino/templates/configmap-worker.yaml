@@ -75,6 +75,11 @@ data:
   {{- end }}
 {{ end }}
 
+{{- range $fileName, $fileProperties := .Values.worker.additionalPropertyFiles }}
+  {{ $fileName }}.properties: |
+    {{- $fileProperties | nindent 4 }}
+{{- end }}
+
 ---
 
 apiVersion: v1

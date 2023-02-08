@@ -96,6 +96,11 @@ data:
     file.password-file={{ .Values.server.config.path }}/auth/password.db
   {{- end }}
 
+{{- range $fileName, $fileProperties := .Values.coordinator.additionalPropertyFiles }}
+  {{ $fileName }}.properties: |
+    {{- $fileProperties | nindent 4 }}
+{{- end }}
+
 {{ if .Values.eventListenerProperties }}
   event-listener.properties: |
   {{- range $configValue := .Values.eventListenerProperties }}
