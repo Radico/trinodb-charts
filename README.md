@@ -21,6 +21,18 @@ You can then run `helm search repo trino` to see the charts.
 
 Then you can install chart using:
 
+### Building
+
+```console
+cd charts/trino
+helm package .
+aws ecr get-login-password \
+     --region us-east-1 | helm registry login \
+     --username AWS \
+     --password-stdin <account>.dkr.ecr.us-east-1.amazonaws.com/<repo>
+helm push trino-*.tgz oci://<account>.dkr.ecr.us-east-1.amazonaws.com
+```
+
 ```console
 helm install my-trino trino/trino --version 0.9.0
 ```
