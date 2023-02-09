@@ -1,0 +1,5 @@
+# ignore local values
+.helmignore
+values-*
+*.tgz
+ci/
