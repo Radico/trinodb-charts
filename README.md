@@ -23,9 +23,18 @@ Then you can install chart using:
 
 ### Building
 
+
 ```console
 cd charts/trino
 helm package .
+```
+
+### Publishing
+
+#### AWS ECR
+
+```console
+cd charts/trino
 aws ecr get-login-password \
      --region us-east-1 | helm registry login \
      --username AWS \
