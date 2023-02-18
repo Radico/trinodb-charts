@@ -41,6 +41,9 @@ server:
   exchangeManager:
     name: "filesystem"
     baseDir: "/tmp/trino-local-file-system-exchange-manager"
+    useVolume: true
+    pvcName: trino-exchange-storage-claim
+    volumeSize: "10Gi"
   workerExtraConfig: ""
   coordinatorExtraConfig: ""
   autoscaling:
@@ -132,10 +135,9 @@ securityContext:
 service:
   type: ClusterIP
   port: 8080
+  annotations: {}
 
 nodeSelector: {}
-
-tolerations: []
 
 auth: {}
   # Set username and password
@@ -169,6 +171,7 @@ coordinator:
   additionalJVMConfig: {}
 
   annotations: {}
+  tolerations: {}
   resources: {}
     # We usually recommend not to specify default resources and to leave this as a conscious
     # choice for the user. This also increases chances charts run on environments with little
@@ -203,7 +206,6 @@ worker:
       type: "UseG1GC"
       g1:
         heapRegionSize: "32M"
-
   config:
     memory:
       heapHeadroomPerNode: ""
@@ -212,6 +214,7 @@ worker:
   additionalJVMConfig: {}
 
   annotations: {}
+  tolerations: {}
   resources: {}
     # We usually recommend not to specify default resources and to leave this as a conscious
     # choice for the user. This also increases chances charts run on environments with little

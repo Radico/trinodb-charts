@@ -44,6 +44,11 @@ spec:
           configMap:
             name: trino-access-control-volume-coordinator
         {{- end }}{{- end }}
+        {{- if .Values.server.exchangeManager.useVolume }}
+        - name: exchange-storage
+          persistentVolumeClaim:
+            claimName: {{ .Values.server.exchangeManager.pvcName }}
+        {{- end }}
         {{- if eq .Values.server.config.authenticationType "PASSWORD" }}
         - name: password-volume
           secret:
@@ -85,6 +90,10 @@ spec:
             - mountPath: {{ .Values.server.config.path }}/auth
               name: password-volume
             {{- end }}
+            {{- if .Values.server.exchangeManager.useVolume }}
+            - mountPath: {{ .Values.server.exchangeManager.baseDir }}
+              name: exchange-storage
+            {{- end }}
           ports:
             - name: http
               containerPort: {{ .Values.service.port }}
@@ -122,7 +131,7 @@ spec:
       affinity:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.tolerations }}
+      {{- with .Values.coordinator.tolerations }}
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}

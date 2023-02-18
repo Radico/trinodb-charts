@@ -36,16 +36,29 @@ spec:
         - name: schemas-volume
           configMap:
             name: schemas-volume-worker
+        {{- if .Values.server.exchangeManager.useVolume }}
+        - name: exchange-storage
+          persistentVolumeClaim:
+            claimName: {{ .Values.server.exchangeManager.pvcName }}
+        {{- end }}
       {{- if .Values.initContainers.worker }}
       initContainers:
       {{-  tpl (toYaml .Values.initContainers.worker) . | nindent 6 }}
       {{- end }}
       imagePullSecrets:
         {{- toYaml .Values.imagePullSecrets | nindent 8 }}
+      terminationGracePeriodSeconds: 120
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
       containers:
         - name: {{ .Chart.Name }}-worker
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            runAsUser: 1000
+            allowPrivilegeEscalation: false  
           env:
             {{- toYaml .Values.env | nindent 12 }}
           volumeMounts:
@@ -55,6 +68,10 @@ spec:
               name: catalog-volume
             - mountPath: {{ .Values.kafka.mountPath }}
               name: schemas-volume
+            {{- if .Values.server.exchangeManager.useVolume }}
+            - mountPath: {{ .Values.server.exchangeManager.baseDir }}
+              name: exchange-storage
+            {{- end }}
           ports:
             - name: http
               containerPort: {{ .Values.service.port }}
@@ -86,13 +103,9 @@ spec:
             preStop:
               exec: 
                 command:
-                  - "/usr/bin/curl"
-                  - "-v" 
-                  - "-X PUT"
-                  - "-H 'X-Trino-User: k8s'"
-                  - "-d 'SHUTTING_DOWN'"
-                  - "-H 'Content-type: application/json'"
-                  - "http://localhost:8080/v1/info/state"
+                  - "/bin/sh"
+                  - "-c"
+                  - "/usr/bin/curl -v -X PUT -H \"X-Trino-User: root\" -d '\"SHUTTING_DOWN\"' -H \"Content-type: application/json\" http://localhost:8080/v1/info/state && /usr/bin/sleep 120"
           resources:
             {{- toYaml .Values.worker.resources | nindent 12 }}
       {{- with .Values.nodeSelector }}
@@ -103,7 +116,7 @@ spec:
       affinity:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.tolerations }}
+      {{- with .Values.worker.tolerations }}
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
