@@ -85,7 +85,7 @@ data:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: schemas-volume-worker
+  name: {{ template "trino.worker" . }}-schemas-volume
   labels:
     {{- include "trino.labels" . | nindent 4 }}
     app.kubernetes.io/component: worker

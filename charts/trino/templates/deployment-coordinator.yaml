@@ -38,11 +38,11 @@ spec:
             name: {{ template "trino.catalog" . }}
         - name: schemas-volume
           configMap:
-            name: schemas-volume-coordinator
+            name: {{ template "trino.coordinator" . }}-schemas-volume
         {{- if .Values.accessControl }}{{- if eq .Values.accessControl.type "configmap" }}
         - name: access-control-volume
           configMap:
-            name: trino-access-control-volume-coordinator
+            name: {{ template "trino.coordinator" . }}-access-control-volume
         {{- end }}{{- end }}
         {{- if .Values.server.exchangeManager.useVolume }}
         - name: exchange-storage

@@ -35,7 +35,7 @@ spec:
             name: {{ template "trino.catalog" . }}
         - name: schemas-volume
           configMap:
-            name: schemas-volume-worker
+            name: {{ template "trino.worker" . }}-schemas-volume
         {{- if .Values.server.exchangeManager.useVolume }}
         - name: exchange-storage
           persistentVolumeClaim:
