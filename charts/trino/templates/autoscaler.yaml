@@ -17,6 +17,16 @@ spec:
         averageUtilization: {{ .Values.server.autoscaling.targetCPUUtilizationPercentage }}
         type: Utilization
     type: Resource
+  - external:
+      metric:
+        name: trino.execution.executor.waiting_splits
+        selector:
+          matchLabels:
+            kube_deployment: {{ template "trino.worker" . }}
+      target:
+        type: Value
+        value: 1k
+    type: External
   {{- if .Values.server.autoscaling.behavior }}
   behavior:
     {{- toYaml .Values.server.autoscaling.behavior | nindent 4 }}
