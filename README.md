@@ -71,3 +71,23 @@ you [install the pre-commit binary](https://pre-commit.com/#install), then run:
 pre-commit install
 pre-commit install-hooks
 ```
+
+### Simon-specific
+
+Authenticate to AWS ECR for Helm repo
+```console
+aws ecr get-login-password | helm registry login --username AWS --password-stdin 709223122281.dkr.ecr.us-east-1.amazonaws.com
+```
+
+Package the chart
+```console
+cd charts/trino
+# Make sure no extra zip/tar.gz or other files are in directory or they'll also be packaged unless in the .helmignore file
+helm package .
+```
+
+Push the chart to AWS ECR - update the filename based on the version
+```console
+helm push trino-0.25.0+simon.tgz oci://709223122281.dkr.ecr.us-east-1.amazonaws.com
+```
+
