@@ -19,13 +19,13 @@ spec:
     type: Resource
   - external:
       metric:
-        name: trino.execution.executor.waiting_splits
+        name: trino.execution.executor.timesharing.waiting_splits
         selector:
           matchLabels:
             kube_deployment: {{ template "trino.worker" . }}
       target:
-        type: Value
-        value: 1k
+        type: AverageValue
+        value: 250m
     type: External
   {{- if .Values.server.autoscaling.behavior }}
   behavior:
