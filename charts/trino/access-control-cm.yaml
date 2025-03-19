@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: trino-green-access-control
+  namespace: trino
+  labels:
+    app.kubernetes.io/component: coordinator
+data:
+  access-control.properties: |
+    access-control.name=trino-auth
