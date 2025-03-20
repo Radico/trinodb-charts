@@ -29,6 +29,7 @@ spec:
         runAsUser: {{ .runAsUser }}
         runAsGroup: {{ .runAsGroup }}
       {{- end }}
+      hostNetwork: {{ .Values.coordinator.hostNetwork }}
       volumes:
         - name: config-volume
           configMap:

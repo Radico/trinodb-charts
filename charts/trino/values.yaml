@@ -50,6 +50,17 @@ server:
     enabled: false
     maxReplicas: 5
     targetCPUUtilizationPercentage: 50
+    metrics: []
+      #- external:
+      #    metric:
+      #      name: trino.execution.executor.waiting_splits
+      #      selector:
+      #        matchLabels:
+      #          kube_deployment: trino-blue-worker
+      #    target:
+      #      type: Value
+      #      value: 1k
+      #  type: External
 
 accessControl: {}
   # type: configmap
@@ -162,7 +173,7 @@ coordinator:
       type: "UseG1GC"
       g1:
         heapRegionSize: "32M"
-
+  hostNetwork: false
   config:
     memory:
       heapHeadroomPerNode: ""
@@ -206,6 +217,7 @@ worker:
       type: "UseG1GC"
       g1:
         heapRegionSize: "32M"
+  hostNetwork: false
   config:
     memory:
       heapHeadroomPerNode: ""

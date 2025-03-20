@@ -11,22 +11,15 @@ spec:
     kind: Deployment
     name: {{ template "trino.worker" . }}
   metrics:
-  - resource:
-      name: cpu
-      target:
-        averageUtilization: {{ .Values.server.autoscaling.targetCPUUtilizationPercentage }}
-        type: Utilization
-    type: Resource
-  - external:
-      metric:
-        name: trino.execution.executor.waiting_splits
-        selector:
-          matchLabels:
-            kube_deployment: {{ template "trino.worker" . }}
-      target:
-        type: Value
-        value: 1k
-    type: External
+    {{ if .Values.server.autoscaling.targetCPUUtilizationPercentage -}}
+    - resource:
+        name: cpu
+        target:
+          averageUtilization: {{ .Values.server.autoscaling.targetCPUUtilizationPercentage }}
+          type: Utilization
+      type: Resource
+    {{- end }}
+    {{- toYaml .Values.server.autoscaling.metrics | nindent 4 }}
   {{- if .Values.server.autoscaling.behavior }}
   behavior:
     {{- toYaml .Values.server.autoscaling.behavior | nindent 4 }}
