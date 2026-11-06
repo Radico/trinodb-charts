@@ -1,4 +1,8 @@
-{{- if or .Values.jmx.exporter.enabled .Values.serviceMonitor.enabled }}
+{{- $coordinatorJmx := include "trino.roleConfig" (dict "block" .Values.jmx "role" "coordinator") | fromYaml -}}
+{{- $workerJmx := include "trino.roleConfig" (dict "block" .Values.jmx "role" "worker") | fromYaml -}}
+{{- $coordinatorServiceMonitor := include "trino.roleConfig" (dict "block" .Values.serviceMonitor "role" "coordinator") | fromYaml -}}
+{{- $workerServiceMonitor := include "trino.roleConfig" (dict "block" .Values.serviceMonitor "role" "worker") | fromYaml -}}
+{{- if or $coordinatorJmx.exporter.enabled $coordinatorServiceMonitor.enabled $workerJmx.exporter.enabled $workerServiceMonitor.enabled -}}
 apiVersion: v1
 kind: Pod
 metadata:
@@ -9,19 +13,50 @@ metadata:
     test: jmx
   annotations:
     "helm.sh/hook": test
+    "helm.sh/hook-delete-policy": hook-succeeded
 spec:
   containers:
-    {{- if .Values.jmx.exporter.enabled }}
-    - name: trino-jmx
+    {{- if $coordinatorJmx.exporter.enabled }}
+    - name: trino-jmx-coordinator
       image: {{ include "trino.image" . }}
       command: ["/bin/bash", "-c"]
       args:
-      - curl -s {{ include "trino.fullname" . }}.{{ .Release.Namespace }}:5556/metrics | grep -q trino
+        - '[[ "$(curl -s {{ include "trino.fullname" . }}.{{ .Release.Namespace }}:{{ $coordinatorJmx.exporter.port }}/metrics)" == *trino* ]]'
     {{- end }}
-    {{- if .Values.serviceMonitor.enabled }}
-    - name: service-monitor
-      image: python:3-slim
+    {{- if $workerJmx.exporter.enabled }}
+    - name: trino-jmx-worker
+      image: {{ include "trino.image" . }}
+      command: ["/bin/bash", "-c"]
+      args:
+        - '[[ "$(curl -s {{ include "trino.fullname" . }}-worker.{{ .Release.Namespace }}:{{ $workerJmx.exporter.port }}/metrics)" == *trino* ]]'
+    {{- end }}
+    {{- if and $coordinatorServiceMonitor.enabled $coordinatorServiceMonitor.openMetrics.enabled (not $coordinatorServiceMonitor.openMetrics.authSecret) }}
+    - name: trino-open-metrics-coordinator
+      image: {{ include "trino.image" . }}
+      command: ["/bin/bash", "-c"]
+      args:
+        - >-
+          [[ "$(curl --silent --show-error --fail --insecure
+          --user {{ printf "%s:%s" $coordinatorServiceMonitor.openMetrics.username $coordinatorServiceMonitor.openMetrics.password | quote }}
+          {{ if .Values.server.config.https.enabled }}https://{{ include "trino.fullname" . }}.{{ .Release.Namespace }}:{{ .Values.server.config.https.port }}{{ else }}http://{{ include "trino.fullname" . }}.{{ .Release.Namespace }}:{{ .Values.service.port }}{{ end }}{{ $coordinatorServiceMonitor.openMetrics.path }})"
+          == *trino* ]]
+    {{- end }}
+    {{- if $coordinatorServiceMonitor.enabled }}
+    - name: service-monitor-coordinator
+      image: {{ include "trino.testImage" (dict "context" $ "image" .Values.testImages.python) }}
+      imagePullPolicy: {{ .Values.testImages.python.pullPolicy }}
+      command: [ "python", "/tests/test.py" ]
+      args: ["{{ include "trino.fullname" . }}"]
+      volumeMounts:
+        - name: tests
+          mountPath: /tests
+    {{- end }}
+    {{- if $workerServiceMonitor.enabled }}
+    - name: service-monitor-worker
+      image: {{ include "trino.testImage" (dict "context" $ "image" .Values.testImages.python) }}
+      imagePullPolicy: {{ .Values.testImages.python.pullPolicy }}
       command: ["python", "/tests/test.py"]
+      args: ["{{ include "trino.fullname" . }}-worker"]
       volumeMounts:
         - name: tests
           mountPath: /tests
@@ -40,28 +75,57 @@ metadata:
     {{- include "trino.labels" . | nindent 4 }}
     app.kubernetes.io/component: test
     test: jmx
+  annotations:
+    "helm.sh/hook": test
+    "helm.sh/hook-delete-policy": hook-succeeded
 data:
   test.py: |
     from urllib.request import urlopen
     from urllib.error import URLError, HTTPError
     import json
+    import logging
+    import sys
+    import time
 
-    url = "http://prometheus-operator-kube-p-prometheus:9090/api/v1/targets?scrapePool=serviceMonitor/{{ .Release.Namespace }}/{{ include "trino.fullname" . }}/0&state=active"
+    logger = logging.getLogger(__name__)
+    target_service = sys.argv[1]
+    deadline = time.monotonic() + 180
+    url = f"http://prometheus-operator-kube-p-prometheus:9090/api/v1/targets?scrapePool=serviceMonitor/{{ .Release.Namespace }}/{target_service}/0&state=active"
     while True:
       try:
         with urlopen(url) as response:
           data = json.load(response)
       except (URLError, HTTPError) as e:
-        print("Error fetching targets, Prometheus service might not be ready: ", e)
-        continue
+          logger.warning("Error fetching targets, Prometheus service might not be ready: ", e)
+          time.sleep(2)  # Retry after 2 seconds
+          continue
 
       try:
-        service_name = data["data"]["activeTargets"][0]["discoveredLabels"]["__meta_kubernetes_service_name"]
+        target = data["data"]["activeTargets"][0]
+        service_name = target["discoveredLabels"]["__meta_kubernetes_service_name"]
       except (KeyError, IndexError) as e:
-        print("Invalid Prometheus response: ", e)
+        logger.warning("Invalid Prometheus response: ", e)
+        time.sleep(2)  # Retry after 2 seconds
         continue
 
-      if service_name == "{{ include "trino.fullname" . }}":
-        print("Found expected service in Prometheus targets")
+      if service_name != target_service:
+        time.sleep(2)  # Retry after 2 seconds
+        continue
+
+      # A target Prometheus discovered but cannot read is still listed as
+      # active, so discovery alone says nothing about whether the scrape
+      # works. An authentication or authorization failure shows up here, and
+      # so does a pod that has not finished starting, which is why this waits
+      # for the target to come up rather than failing the first time it is
+      # down.
+      health = target.get("health")
+      if health == "up":
+        logger.info(f"Scraped expected service '{service_name}' successfully!")
         break
+
+      if time.monotonic() > deadline:
+        sys.exit(f"Target '{service_name}' is {health}: {target.get('lastError')}")
+
+      logger.info(f"Target '{service_name}' is {health}, waiting: {target.get('lastError')}")
+      time.sleep(2)  # Retry after 2 seconds
 {{- end }}

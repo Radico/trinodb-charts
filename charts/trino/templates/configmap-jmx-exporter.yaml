@@ -1,13 +1,29 @@
-{{- if .Values.jmx.exporter.enabled -}}
+{{- $coordinatorJmx := include "trino.roleConfig" (dict "block" .Values.jmx "role" "coordinator") | fromYaml -}}
+{{- if $coordinatorJmx.exporter.enabled }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ template "trino.fullname" . }}-jmx-exporter-config
+  name: {{ template "trino.fullname" . }}-jmx-exporter-config-coordinator
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "trino.labels" . | nindent 4 }}
     app.kubernetes.io/component: jmx
 data:
   jmx-exporter-config.yaml: |-
-    {{- .Values.jmx.exporter.configProperties | nindent 4 }}
+    {{- tpl $coordinatorJmx.exporter.configProperties . | nindent 4 }}
+{{- end }}
+{{- $workerJmx := include "trino.roleConfig" (dict "block" .Values.jmx "role" "worker") | fromYaml -}}
+{{- if $workerJmx.exporter.enabled }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ template "trino.fullname" . }}-jmx-exporter-config-worker
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "trino.labels" . | nindent 4 }}
+    app.kubernetes.io/component: jmx
+data:
+  jmx-exporter-config.yaml: |-
+    {{- tpl $workerJmx.exporter.configProperties . | nindent 4 }}
 {{- end }}
