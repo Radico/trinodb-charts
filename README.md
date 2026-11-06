@@ -31,6 +31,39 @@ Also, you can check the manifests using:
 helm template my-trino trino/trino --namespace <YOUR_NAMESPACE>
 ```
 
+## Simon fork: building and publishing
+
+This fork tracks upstream chart 1.45.0 with a small set of Simon patches on top,
+published as chart version `1.45.0+simon` (Trino 482). Helm stores the `+` as `_`
+in the OCI tag.
+
+### Building
+
+```console
+cd charts/trino
+helm package .
+```
+
+### Publishing
+
+#### AWS ECR
+
+```console
+cd charts/trino
+aws ecr get-login-password \
+     --region us-east-1 | helm registry login \
+     --username AWS \
+     --password-stdin <account>.dkr.ecr.us-east-1.amazonaws.com/<repo>
+helm push trino-1.45.0+simon.tgz oci://<account>.dkr.ecr.us-east-1.amazonaws.com
+```
+
+```console
+helm install trino-blue oci://<account>.dkr.ecr.us-east-1.amazonaws.com/trino --version 1.45.0+simon
+```
+
+See [the values migration notes](./charts/trino/MIGRATION-0.13-to-1.45.md) when
+moving a release from the 0.13 fork.
+
 ## Documentation
 
 You can find documentation about the chart [here](./charts/trino/README.md).
