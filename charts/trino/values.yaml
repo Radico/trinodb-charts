@@ -145,6 +145,24 @@ server:
     #      periodSeconds: 15
     #    selectPolicy: Max
     # ```
+    metrics: []
+    # server.autoscaling.metrics -- Additional [metric specs](https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/horizontal-pod-autoscaler-v2/#HorizontalPodAutoscalerSpec)
+    # appended after the CPU and memory targets, such as `Object` or `External` metrics served by a metrics adapter.
+    # @raw
+    # Example:
+    # ```yaml
+    #  - type: Object
+    #    object:
+    #      metric:
+    #        name: trino_execution_executor_TaskExecutor_WaitingSplits_total
+    #      describedObject:
+    #        apiVersion: v1
+    #        kind: Namespace
+    #        name: trino
+    #      target:
+    #        type: Value
+    #        value: "3000"
+    # ```
 
   # server.keda -- Configure [Kubernetes Event-driven Autoscaling](https://keda.sh/) for workers
   # (`server.autoscaling.enabled` must be `false`).

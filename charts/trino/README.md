@@ -1,6 +1,6 @@
 # trino
 
-![Version: 1.45.0](https://img.shields.io/badge/Version-1.45.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 484](https://img.shields.io/badge/AppVersion-484-informational?style=flat-square)
+![Version: 1.45.0+simon](https://img.shields.io/badge/Version-1.45.0+simon-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 482](https://img.shields.io/badge/AppVersion-482-informational?style=flat-square)
 
 Fast distributed SQL query engine for big data analytics that helps you explore your data universe
 
@@ -95,7 +95,7 @@ Fast distributed SQL query engine for big data analytics that helps you explore 
   ```
 * `server.workerExtraConfig` - string, default: `""`
 * `server.coordinatorExtraConfig` - string, default: `""`
-* `server.autoscaling` - object, default: `{"behavior":{},"enabled":false,"maxReplicas":5,"targetCPUUtilizationPercentage":50,"targetMemoryUtilizationPercentage":80}`  
+* `server.autoscaling` - object, default: `{"behavior":{},"enabled":false,"maxReplicas":5,"metrics":[],"targetCPUUtilizationPercentage":50,"targetMemoryUtilizationPercentage":80}`  
 
   Configure [Horizontal Pod Autoscaling](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/) for workers (`server.keda.enabled` must be `false`).
 * `server.autoscaling.targetCPUUtilizationPercentage` - int, default: `50`  
@@ -125,6 +125,23 @@ Fast distributed SQL query engine for big data analytics that helps you explore 
        value: 4
        periodSeconds: 15
      selectPolicy: Max
+  ```
+* `server.autoscaling.metrics` - list, default: `[]`  
+
+  Additional [metric specs](https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/horizontal-pod-autoscaler-v2/#HorizontalPodAutoscalerSpec) appended after the CPU and memory targets, such as `Object` or `External` metrics served by a metrics adapter.
+  Example:
+  ```yaml
+   - type: Object
+     object:
+       metric:
+         name: trino_execution_executor_TaskExecutor_WaitingSplits_total
+       describedObject:
+         apiVersion: v1
+         kind: Namespace
+         name: trino
+       target:
+         type: Value
+         value: "3000"
   ```
 * `server.keda` - object, default: `{"advanced":{},"annotations":{},"cooldownPeriod":300,"enabled":false,"fallback":{},"initialCooldownPeriod":0,"maxReplicaCount":5,"minReplicaCount":0,"pollingInterval":30,"triggers":[]}`  
 
