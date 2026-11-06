@@ -1,0 +1,22 @@
+{{- $workerAccessControl := include "trino.workerAccessControl" . | fromYaml }}
+{{- if eq (include "trino.configType" $workerAccessControl) "configmap" }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ template "trino.fullname" . }}-access-control-volume-worker
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "trino.labels" . | nindent 4 }}
+    app.kubernetes.io/component: worker
+data:
+  {{- $rulesFile := $workerAccessControl.configFile | default "rules.json" }}
+  {{- range $key, $val := $workerAccessControl.rules }}
+  {{- if or (ne $key $rulesFile) (not $.Values.worker.gracefulShutdown.enabled) }}
+  {{ $key }}: {{ $val | quote }}
+  {{- end }}
+  {{- end }}
+  {{- if .Values.worker.gracefulShutdown.enabled }}
+  {{ $rulesFile }}: >-
+    {{- include "trino.workerAccessControlRules" . | nindent 4 }}
+  {{- end }}
+{{- end }}

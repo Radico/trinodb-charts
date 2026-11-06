@@ -15,14 +15,14 @@ spec:
     {{- range .Values.ingress.tls }}
     - hosts:
         {{- range .hosts }}
-        - {{ . | quote }}
+        - {{ tpl . $ | quote }}
         {{- end }}
-      secretName: {{ .secretName }}
+      secretName: {{ tpl .secretName $ }}
     {{- end }}
   {{- end }}
   rules:
     {{- range .Values.ingress.hosts }}
-    - host: {{ .host | quote }}
+    - host: {{ tpl .host $ | quote }}
       http:
         paths:
           {{- range .paths }}
@@ -32,7 +32,11 @@ spec:
               service:
                 name: {{ include "trino.fullname" $ }}
                 port:
+                  {{- if $.Values.server.config.https.enabled }}
+                  number: {{ $.Values.server.config.https.port }}
+                  {{- else }}
                   number: {{ $.Values.service.port }}
+                  {{- end }}
           {{- end }}
     {{- end }}
 {{- end }}

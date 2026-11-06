@@ -9,6 +9,24 @@ metadata:
   annotations:
     "helm.sh/hook": test
 spec:
+  {{- if eq (include "trino.configType" .Values.resourceGroups) "properties" }}
+  initContainers:
+    - name: postgresql-client
+      image: {{ include "trino.testImage" (dict "context" $ "image" .Values.testImages.postgresql) }}
+      imagePullPolicy: {{ .Values.testImages.postgresql.pullPolicy }}
+      command:
+        - /bin/sh
+        - -c
+        - |
+          echo "Inserting resource groups data";
+          PGUSER=trino PGPASSWORD=pass0000 psql -h postgresql resource_groups <<SQL
+          -- create a root group 'admin' with NULL parent
+          INSERT INTO resource_groups (name, soft_memory_limit, hard_concurrency_limit, max_queued, scheduling_policy, environment)
+          VALUES ('admin', '100%', 50, 100, 'query_priority', 'production');
+          -- use ID of 'admin' resource group for selector
+          INSERT INTO selectors (resource_group_id, user_regex, priority) VALUES ((SELECT resource_group_id FROM resource_groups WHERE name = 'admin'), 'admin', 6);
+          SQL
+  {{- end }}
   containers:
     - name: cli
       image: {{ include "trino.image" . }}
@@ -25,12 +43,12 @@ spec:
       - --password
     {{- end }}
       - --debug
-      - --execute=SELECT 1
+      - --execute=SELECT COUNT(*) FROM tpch.tiny.nation
       - --no-progress
     {{- if eq .Values.server.config.authenticationType "PASSWORD" }}
       env:
         - name: TRINO_PASSWORD
-          # must match test-values.yaml
+          # must match ci/complete-values.yaml
           value: admin123
     {{- end }}
     {{- if .Values.server.config.https.enabled }}
@@ -41,6 +59,6 @@ spec:
   volumes:
     - name: certificates
       secret:
-        secretName: certificates
+        secretName: {{ .Release.Namespace }}-certificates
     {{- end }}
   restartPolicy: Never

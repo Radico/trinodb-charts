@@ -1,0 +1,48 @@
+{{- $workerJmx := include "trino.roleConfig" (dict "block" .Values.jmx "role" "worker") | fromYaml -}}
+{{- include "trino.checkServiceOverrides" (dict "role" "worker" "overrides" .Values.service.worker "supported" (list "annotations" "appProtocols")) -}}
+{{- $workerService := include "trino.roleConfig" (dict "block" .Values.service "role" "worker") | fromYaml -}}
+{{- $appProtocols := $workerService.appProtocols | default dict -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ template "trino.fullname" . }}-worker
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "trino.labels" . | nindent 4 }}
+    app.kubernetes.io/component: worker
+  annotations:
+    {{- toYaml $workerService.annotations | nindent 4 }}
+spec:
+  clusterIP: None
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+      {{- with index $appProtocols "http" }}
+      appProtocol: {{ . }}
+      {{- end }}
+    {{- if $workerJmx.exporter.enabled }}
+    - port: {{$workerJmx.exporter.port }}
+      targetPort: jmx-exporter
+      protocol: TCP
+      name: jmx-exporter
+      {{- with index $appProtocols "jmx-exporter" }}
+      appProtocol: {{ . }}
+      {{- end }}
+    {{- end }}
+    {{- range $key, $value := .Values.worker.additionalExposedPorts }}
+    - port: {{ $value.servicePort }}
+      name: {{ $value.name }}
+      targetPort: {{ $value.port }}
+      protocol: {{ $value.protocol }}
+      {{- with index $appProtocols $value.name }}
+      appProtocol: {{ . }}
+      {{- end }}
+      {{- if $value.nodePort }}
+      nodePort: {{ $value.nodePort }}
+      {{- end }}
+    {{- end }}
+  selector:
+    {{- include "trino.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: worker

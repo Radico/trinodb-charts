@@ -1,0 +1,67 @@
+{{- $coordinatorJmx := include "trino.roleConfig" (dict "block" .Values.jmx "role" "coordinator") | fromYaml -}}
+{{- include "trino.checkServiceOverrides" (dict "role" "coordinator" "overrides" .Values.service.coordinator "supported" (list "annotations" "appProtocols" "type" "nodePort" "loadBalancerSourceRanges")) -}}
+{{- $coordinatorService := include "trino.roleConfig" (dict "block" .Values.service "role" "coordinator") | fromYaml -}}
+{{- $appProtocols := $coordinatorService.appProtocols | default dict -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ template "trino.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "trino.labels" . | nindent 4 }}
+    app.kubernetes.io/component: coordinator
+  annotations:
+    {{- toYaml $coordinatorService.annotations | nindent 4 }}
+spec:
+  type: {{ $coordinatorService.type }}
+  {{- with $coordinatorService.loadBalancerSourceRanges }}
+  loadBalancerSourceRanges:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+      {{- with index $appProtocols "http" }}
+      appProtocol: {{ . }}
+      {{- end }}
+      {{- if $coordinatorService.nodePort }}
+      nodePort: {{ $coordinatorService.nodePort }}
+      {{- end }}
+    {{- if .Values.server.config.https.enabled }}
+    - port: {{ .Values.server.config.https.port }}
+      targetPort: https
+      protocol: TCP
+      name: https
+      {{- with index $appProtocols "https" }}
+      appProtocol: {{ . }}
+      {{- end }}
+    {{- end }}
+    {{- if $coordinatorJmx.exporter.enabled }}
+    - port: {{ $coordinatorJmx.exporter.port }}
+      targetPort: jmx-exporter
+      protocol: TCP
+      name: jmx-exporter
+      {{- with index $appProtocols "jmx-exporter" }}
+      appProtocol: {{ . }}
+      {{- end }}
+      {{- if $coordinatorJmx.exporter.nodePort }}
+      nodePort: {{ $coordinatorJmx.exporter.nodePort }}
+      {{- end }}
+    {{- end }}
+    {{- range $key, $value := .Values.coordinator.additionalExposedPorts }}
+    - port: {{ $value.servicePort }}
+      name: {{ $value.name }}
+      targetPort: {{ $value.port }}
+      protocol: {{ $value.protocol }}
+      {{- with index $appProtocols $value.name }}
+      appProtocol: {{ . }}
+      {{- end }}
+      {{- if $value.nodePort }}
+      nodePort: {{ $value.nodePort }}
+      {{- end }}
+    {{- end }}
+  selector:
+    {{- include "trino.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: coordinator

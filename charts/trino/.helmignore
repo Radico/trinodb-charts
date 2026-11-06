@@ -1,0 +1,7 @@
+# Anchored so these match only the chart root. An unanchored "tests/" would also
+# match templates/tests/ and drop the Helm test hooks from the packaged chart.
+/ci/
+/tests/
+# Local values files and packaged charts from `helm package`
+values-*
+*.tgz
